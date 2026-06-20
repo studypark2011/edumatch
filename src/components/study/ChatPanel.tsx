@@ -193,7 +193,7 @@ export default function ChatPanel({
       <div className="mt-3 flex items-center justify-between">
         <span className="text-xs text-[var(--muted)]">
           {canProceed
-            ? "十分に対話できました。次に進めます。"
+            ? "十分に対話できました。納得いくまで続けても、次に進んでも構いません。"
             : `あと ${Math.max(0, MIN_USER_TURNS - userTurns)} 回ほどやりとりしてから次に進めます`}
         </span>
         <button
