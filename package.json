@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:setup": "node scripts/db-setup.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.105.0",
@@ -26,9 +27,11 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.22.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
