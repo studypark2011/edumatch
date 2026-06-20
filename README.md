@@ -1,115 +1,88 @@
 # 教育特化型RAG対話メディア（研究用アプリ）
 
-論文「AIとの対話を通じた教育関係者の意見言語化支援 ― 教育特化型RAGと対話モードを備えた対話型メディアの設計と予備的評価 ―」（AsiaEdu 2026 予備調査）のために実装した Web アプリです。
+論文「AIとの対話を通じた教育関係者の意見言語化支援 ― 教育特化型RAGと対話モードを備えた対話型メディアの設計と予備的評価 ―」（AsiaEdu 2026）の予備調査で用いる Web アプリです。
 
-教育関係者が AI との対話を通じて **自分の意見を形成・言語化** することを支援します。AI を「答えを与える存在」ではなく **思考の足場（scaffolding）** として位置づけています。
+**事前・事後アンケートを対話システムに統合し、同意 → 属性 → 各テーマ（事前→対話→事後）→ 自由記述 までを1セッションで完結**します（Googleフォーム不要）。アンケート回答と対話ログが自動的に1参加者へ紐づくため、突合作業が不要です。
+
+AI は「答えを与える存在」ではなく、利用者が自ら考えるための **思考の足場（scaffolding）** として設計しています。
 
 ## 主な機能
 
-1. **教育特化型RAG**（論文 3.2 / 図1）— 学習指導要領・文科省ガイドライン・生徒指導提要などの公的文書を登録し、`pgvector` で検索して根拠ある応答を生成。
-2. **3つの対話モード**（論文 3.3 / 図3）— ナビゲーター / ディスカッション / ディベート。システムプロンプトで振る舞いを規定し、管理画面から編集可能。
-3. **対話 → 意見表明の導線**（論文 3.4 / 図5）— 対話が深まると投稿を促し、AI 下書き支援つきで意見を公開ボードへ。
-4. **研究用 A/B 制御** — 群X/Y × テーマで「モードA/B＝RAGあり/なし」を出し分け（カウンターバランス）。回答者には RAG の有無を見せない（盲検）。対話ログを Supabase に保存し CSV 出力。
+1. **統合フロー（一方向）** — 同意→属性→T1事前→T1対話→T1事後→T2事前→T2対話→T2事後→自由記述→完了。前に戻れない。
+2. **教育特化型RAG** — 公的文書を `pgvector` で検索し、根拠を明示した応答を生成。
+3. **A/B制御（盲検）** — 群X/Yを自動交互割当し、群×テーマでRAGあり/なしを出し分け。回答者にRAG有無は見せない。
+4. **データ記録・出力** — すべての選択式回答を整数1〜4で保存。群・RAGフラグを必ず記録。管理画面からCSV出力。
 
-Google フォーム（事前・事後アンケート）の「対話パート」を担うアプリです。
+## 研究データ設計（重要3点）
 
-## 技術構成
+- **選択式回答は 1〜4 の整数で保存**（ラベルではなく数値。分析が容易）。
+- **群（X/Y）と各テーマのRAGあり/なしフラグ（t1_rag, t2_rag）を必ず記録**（条件識別に必須）。
+- **管理者向けCSVエクスポート**：`responses.csv`（1参加者=1行）と `dialogues.csv`（対話ログ）。
 
-- **Next.js 16**（App Router）+ TypeScript + Tailwind CSS → Vercel デプロイ
-- **Supabase**（Postgres + `pgvector` / RLS）
-- **Anthropic Claude**（対話・ストリーミング）
-- 埋め込み: **OpenAI** `text-embedding-3-small@1024` または **Voyage** `voyage-3.5-lite`（次元1024で統一）
-
----
-
-## セットアップ
-
-### 1. Supabase プロジェクト作成
-
-1. <https://supabase.com> でプロジェクトを作成。
-2. **SQL Editor** で以下を順に実行：
-   - `supabase/migrations/0001_init.sql`（テーブル・pgvector・検索RPC・RLS）
-   - `supabase/seed.sql`（テーマ2件・対話モード3件・実験設定4行）
-3. **Settings > API** から `Project URL` / `anon key` / `service_role key` を控える。
-
-> CLI を使う場合：`npx supabase link` 後 `npx supabase db push`、`npx supabase db execute --file supabase/seed.sql`。
-
-### 2. 環境変数
-
-`.env.example` を `.env.local` にコピーして値を設定：
-
-```bash
-cp .env.example .env.local
-```
-
-- `SUPABASE_SERVICE_ROLE_KEY` … サーバ専用。**公開禁止**。
-- `ANTHROPIC_API_KEY` … 対話用。
-- `EMBEDDING_PROVIDER` … `openai`（要 `OPENAI_API_KEY`）または `voyage`（要 `VOYAGE_API_KEY`）。
-- `ADMIN_PASSWORD` … `/admin` ログイン用。
-
-### 3. ローカル起動
-
-```bash
-npm install
-npm run dev
-```
-
-<http://localhost:3000> を開く。
-
-### 4. 文書の登録（RAG）
-
-1. `/admin/login` で `ADMIN_PASSWORD` を入力。
-2. **文書管理** で公的文書を登録（URL から PDF/HTML 取得、またはテキスト貼り付け）。
-   - テーマ1: 文科省 生成AI利用ガイドライン、各校種の学習指導要領 など → タグ `theme1`
-   - テーマ2: 生徒指導提要、校則見直しに関する通知 など → タグ `theme2`
-   - 登録すると自動でチャンク化・埋め込み生成され、状態が「✅ 利用可」になります。
-
-### 5. デプロイ（Vercel）
-
-1. リポジトリを GitHub に push。
-2. Vercel でインポートし、`.env.local` と同じ環境変数を設定。
-3. デプロイ。Google フォームの「別タブでAIツールを開く」リンクに本番URLを貼る。
-
-> 大きな PDF の取り込みは埋め込み生成に時間がかかります。Vercel の関数タイムアウト（Hobby は60秒）に収まらない場合は、テキスト分割登録か Pro プランをご検討ください。
-
----
-
-## 研究フロー（A/B デザイン）
+群の割り当て（カウンターバランス）：
 
 | 群 | テーマ1（生成AIの年齢） | テーマ2（校則と生徒の意見反映） |
 |----|----------------------|------------------------------|
-| 群X | モードA = RAGあり | モードB = RAGなし |
-| 群Y | モードA = RAGなし | モードB = RAGあり |
+| 群X | RAGあり | RAGなし |
+| 群Y | RAGなし | RAGあり |
 
-- 回答者は `/`（トップ）でグループを選び、フォームで指定されたテーマの対話を開始。
-- アプリは `experiment_config` から条件（表示モード・対話スタイル・RAG有無）を解決。**RAG有無はクライアントに返さない**。
-- 集計: 管理ダッシュボードの **メッセージCSV**（群・テーマ・RAG有無の列付き）を使用。
-  - 「RAGあり」= 群Xのテーマ1 + 群Yのテーマ2
-  - 「RAGなし」= 群Xのテーマ2 + 群Yのテーマ1
+集計：RAGあり = 群Xテーマ1＋群Yテーマ2／RAGなし = 群Xテーマ2＋群Yテーマ1（`responses.csv` の t1_rag/t2_rag で自動判別可能）。
 
-実験条件は `/admin/experiment` から変更できます。
+## 技術構成
 
----
+- **Next.js 16**（App Router）+ TypeScript + Tailwind CSS → Vercel
+- **Supabase**（PostgreSQL + `pgvector` / RLS）
+- **Anthropic Claude Sonnet 4.6**（対話・ストリーミング）
+- 埋め込み：**OpenAI text-embedding-3-small**（1024次元）。Voyage AI へ切替可
 
-## ディレクトリ
+## データモデル（要点）
 
+- `participants` … 1参加者=1セッション=1行。属性・群・t1_rag/t2_rag・各テーマの事前/事後/応答評価/モード回答（整数）・自由記述・時刻を保持。
+- `conversations` / `messages` … 対話ログ（participant_id・theme・rag_enabled付き）。
+- `themes` / `documents` / `document_chunks`(vector) / `modes` / `experiment_config`。
+
+## セットアップ
+
+### 1. Supabase
+1. プロジェクトを作成。
+2. SQL Editor で `supabase/migrations/*.sql` を番号順に、続けて `supabase/seed.sql` を実行（または `npm run db:setup`）。
+3. Settings から URL / anon / service_role キー、Connection string（URI）を控える。
+
+### 2. 環境変数
+`.env.example` を `.env.local` にコピーして設定：`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_DB_URL` / `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` / `ADMIN_PASSWORD`。
+
+### 3. 起動 / DB構築
+```bash
+npm install
+npm run db:setup     # 全migration + seed を適用
+npm run dev
 ```
-supabase/
-  migrations/0001_init.sql   # スキーマ・pgvector・RPC・RLS
-  seed.sql                   # テーマ/モード/実験設定の初期データ
-src/
-  lib/                       # env, supabase, anthropic, embeddings, rag, experiment, admin
-  app/
-    page.tsx                 # 参加者トップ（群選択・テーマ選択）
-    dialogue/                # 対話画面
-    board/                   # 公開意見ボード
-    admin/                   # 管理（文書/モード/実験設定/CSV）
-    api/                     # session, chat(ストリーミング), draft, post, admin/*
-  components/                # UI（EntryForm, DialogueClient, admin/*）
-```
 
-## 注意（研究倫理・プライバシー）
+### 4. 文書登録（RAG）
+- `/admin/login` → 文書管理から登録（URL/テキスト）。大きなPDFは `node scripts/ingest-pdf.mjs`（`scripts/ingest.config.mjs` で対象指定、マルチタグ対応）。
 
-- 氏名・メールアドレスなど個人を特定する情報は収集しません（匿名）。
-- 対話ログは研究目的にのみ使用してください。
-- `service_role key` と `ADMIN_PASSWORD` は厳重に管理してください。
+### 5. デプロイ（Vercel）
+- GitHub に push → Vercel でインポート → 環境変数設定 → デプロイ。参加者には本番URLを共有するだけ（フォーム不要）。
+
+## 運用スクリプト
+
+- `npm run db:setup` … マイグレーション＋seed適用
+- `node scripts/db-verify.mjs` … テーマ/モード/実験設定の確認
+- `node scripts/ingest-pdf.mjs` … ローカルPDFをRAGに取り込み
+- `npm run db:reset-data` … 配布直前に会話・回答データを全消去し参加者コードをP001から再開（テーマ/モード/文書は保持）
+
+## CSV出力（管理ダッシュボード）
+
+- **responses.csv**：1参加者=1行。participant_code, group_label, t1_rag, t2_rag, 各テーマの pre/post/resp/mode（整数1〜4）, turn/duration, 自由記述。フラグは 1/0。
+- **dialogues.csv**：対話ログ（participant_code, group, theme_slug, rag_enabled, role, content, created_at）。participant_code で responses と紐づく。
+
+> 分析では `completed_at` が空のレコード（中断）は除外する運用を推奨。
+
+## プライバシー・倫理
+
+- 氏名・メールアドレス等のPIIは収集しない（完全匿名）。participant_code は意味を持たない連番。
+- 管理画面はパスワード認証。秘密鍵・APIキーは環境変数で管理。
+
+## 仕様書
+
+詳細は [docs/仕様書.md](docs/仕様書.md) を参照（論文の System Design 章向け）。
