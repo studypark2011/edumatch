@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { MIN_USER_TURNS } from "@/lib/study-content";
+import { MIN_USER_TURNS, DIALOGUE_GUIDE } from "@/lib/study-content";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -129,6 +129,7 @@ export default function ChatPanel({
         </div>
         <h2 className="text-sm font-bold leading-6">{themeInfo.title}</h2>
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{themeInfo.intro}</p>
+        <p className="mt-2 text-xs font-medium leading-6 text-[var(--foreground)]">{DIALOGUE_GUIDE}</p>
         <p className="mt-2 border-t border-[var(--border)] pt-2 text-xs leading-5 text-[var(--muted)]">
           このテーマについて、いま考えていることや疑問を自由に書いてみてください。AIが論点を整理し、考えを深めるお手伝いをします。
         </p>

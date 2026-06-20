@@ -113,4 +113,8 @@ export const FREE_QUESTIONS = [
 ];
 
 // 対話を終えて次へ進むための最低ユーザー発話数
-export const MIN_USER_TURNS = 3;
+export const MIN_USER_TURNS = 5;
+
+// 対話画面のお題提示の最後に添える案内文
+export const DIALOGUE_GUIDE =
+  "AIと5回以上やり取りしてみてください。そのあとは、ご自身の考えがまとまったと感じたら、いつでも終了して構いません。";
