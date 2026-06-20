@@ -165,3 +165,19 @@ create policy "public read modes" on modes for select using (true);
 
 drop policy if exists "public read posts" on posts;
 create policy "public read posts" on posts for select using (true);
+
+-- =============================================================
+-- Data API（PostgREST）用の権限付与。
+-- Supabaseの「Automatically expose new tables」をOFFにしているため、
+-- 直接Postgres接続で作成したテーブルにロール権限を明示的に付与する。
+-- アプリはサーバ側で service_role を使うため、最低限 service_role に全権を付与。
+-- =============================================================
+grant usage on schema public to anon, authenticated, service_role;
+
+grant all privileges on all tables in schema public to service_role;
+grant all privileges on all sequences in schema public to service_role;
+grant execute on all functions in schema public to service_role;
+
+-- 公開読み取り（匿名・将来anonクライアントを使う場合に備える。RLSポリシーと整合）
+grant select on themes, modes, posts to anon, authenticated;
+grant execute on all functions in schema public to anon, authenticated;

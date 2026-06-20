@@ -8,11 +8,15 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import "dotenv/config";
+import dotenv from "dotenv";
 import pg from "pg";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
+
+// .env.local を優先して読み込む（Next.js と同じ運用）
+dotenv.config({ path: join(root, ".env.local") });
+dotenv.config({ path: join(root, ".env") });
 
 const connectionString = process.argv[2] || process.env.SUPABASE_DB_URL;
 if (!connectionString) {
