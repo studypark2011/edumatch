@@ -205,6 +205,9 @@ export default function StudyFlow() {
           <p className="text-[var(--muted)]">
             所要時間は全体で20〜30分です。正解・不正解はありません。あなたご自身の率直なお考えをお聞かせください。
           </p>
+          <p className="rounded-lg bg-[var(--primary)]/5 px-3 py-2 text-xs leading-6 text-[var(--foreground)]">
+            ※ この調査は<strong>前の画面に戻れない一方向</strong>の流れです。各画面で「次へ」を押すと回答が確定し、前の回答は変更できません。ご回答を確認してからお進みください。
+          </p>
         </div>
         <div className="mt-6">
           <NextBtn onClick={() => { setPre([null, null, null, null]); setStep("t1_pre"); }} label="始める" />
