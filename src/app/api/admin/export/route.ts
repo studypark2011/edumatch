@@ -76,18 +76,6 @@ export async function GET(req: Request) {
       "created_at",
     ]);
     filename = "conversations.csv";
-  } else if (type === "posts") {
-    const { data } = await db.from("posts").select("*").order("created_at");
-    csv = toCsv((data ?? []) as Record<string, unknown>[], [
-      "id",
-      "conversation_id",
-      "theme_slug",
-      "participant_id",
-      "content",
-      "ai_assisted",
-      "created_at",
-    ]);
-    filename = "posts.csv";
   } else {
     return NextResponse.json({ error: "type が不正です" }, { status: 400 });
   }

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { listThemes } from "@/lib/experiment";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import EntryForm from "@/components/EntryForm";
@@ -39,12 +38,6 @@ export default async function Home() {
       </section>
 
       <EntryForm themes={themes} modeByTheme={modeByTheme} />
-
-      <footer className="mt-10 border-t border-[var(--border)] pt-4 text-xs text-[var(--muted)]">
-        <Link href="/board" className="underline">
-          みんなの意見ボードを見る
-        </Link>
-      </footer>
     </main>
   );
 }

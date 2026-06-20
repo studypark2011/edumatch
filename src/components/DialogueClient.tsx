@@ -31,12 +31,6 @@ export default function DialogueClient({
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
 
-  const [showPost, setShowPost] = useState(false);
-  const [postContent, setPostContent] = useState("");
-  const [drafting, setDrafting] = useState(false);
-  const [aiAssisted, setAiAssisted] = useState(false);
-  const [posted, setPosted] = useState(false);
-
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
 
@@ -63,8 +57,6 @@ export default function DialogueClient({
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
-
-  const assistantTurns = messages.filter((m) => m.role === "assistant").length;
 
   async function send() {
     if (!session || !input.trim() || streaming) return;
@@ -129,46 +121,6 @@ export default function DialogueClient({
       });
     } finally {
       setStreaming(false);
-    }
-  }
-
-  async function generateDraft() {
-    if (!session) return;
-    setDrafting(true);
-    try {
-      const res = await fetch("/api/draft", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId: session.conversationId }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "下書きの生成に失敗しました");
-      setPostContent(json.draft ?? "");
-      setAiAssisted(true);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    } finally {
-      setDrafting(false);
-    }
-  }
-
-  async function submitPost() {
-    if (!session || !postContent.trim()) return;
-    try {
-      const res = await fetch("/api/post", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversationId: session.conversationId,
-          content: postContent.trim(),
-          aiAssisted,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "投稿に失敗しました");
-      setPosted(true);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
     }
   }
 
@@ -298,106 +250,33 @@ export default function DialogueClient({
         ))}
       </div>
 
-      {/* 投稿の促し */}
-      {assistantTurns >= 2 && !posted && !showPost && (
+      {/* 入力欄 */}
+      <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
+        <textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          rows={2}
+          placeholder="メッセージを入力（Ctrl/⌘+Enterで送信）"
+          className="flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
+        />
         <button
           type="button"
-          onClick={() => setShowPost(true)}
-          className="mb-2 rounded-lg border border-[var(--primary)] bg-[var(--primary)]/5 px-4 py-2 text-sm font-medium text-[var(--primary)]"
+          onClick={send}
+          disabled={streaming || !input.trim()}
+          className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
-          考えがまとまってきたら、意見を投稿してみませんか？
+          送信
         </button>
-      )}
-
-      {/* 入力欄 */}
-      {!posted && (
-        <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                send();
-              }
-            }}
-            rows={2}
-            placeholder="メッセージを入力（Ctrl/⌘+Enterで送信）"
-            className="flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
-          />
-          <button
-            type="button"
-            onClick={send}
-            disabled={streaming || !input.trim()}
-            className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-          >
-            送信
-          </button>
-        </div>
-      )}
-
-      {/* 投稿パネル */}
-      {showPost && !posted && (
-        <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <p className="mb-2 text-sm font-semibold">あなたの意見を投稿する</p>
-          <p className="mb-2 text-xs text-[var(--muted)]">
-            自分で書いても、AIに下書きを手伝ってもらっても構いません。投稿は任意です。
-          </p>
-          <textarea
-            value={postContent}
-            onChange={(e) => {
-              setPostContent(e.target.value);
-              setAiAssisted(false);
-            }}
-            rows={5}
-            placeholder="このテーマについてのあなたの考えを書いてください。"
-            className="w-full resize-y rounded-lg border border-[var(--border)] p-2 text-sm outline-none focus:border-[var(--primary)]"
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={generateDraft}
-              disabled={drafting}
-              className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-xs disabled:opacity-40"
-            >
-              {drafting ? "生成中…" : "AIに下書きを手伝ってもらう"}
-            </button>
-            <button
-              type="button"
-              onClick={submitPost}
-              disabled={!postContent.trim()}
-              className="rounded-lg bg-[var(--primary)] px-4 py-1.5 text-xs font-medium text-white disabled:opacity-40"
-            >
-              投稿する
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPost(false)}
-              className="rounded-lg px-3 py-1.5 text-xs text-[var(--muted)]"
-            >
-              閉じる
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 投稿後 */}
-      {posted && (
-        <div className="mt-3 rounded-xl border border-green-300 bg-green-50 p-4 text-sm">
-          <p className="font-semibold text-green-800">投稿しました。ありがとうございます。</p>
-          <p className="mt-1 text-green-700">
-            Googleフォームに戻り、続きの質問にお答えください。
-          </p>
-          <div className="mt-2 flex gap-3">
-            <Link href="/board" className="text-[var(--primary)] underline">
-              みんなの意見ボードを見る
-            </Link>
-            <Link href="/" className="text-[var(--primary)] underline">
-              トップへ
-            </Link>
-          </div>
-        </div>
-      )}
+      </div>
+      <p className="mt-2 text-center text-xs text-[var(--muted)]">
+        考えが整理できたら、Googleフォームに戻って続きの質問にお答えください。
+      </p>
     </main>
   );
 }

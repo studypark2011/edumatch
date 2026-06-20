@@ -5,7 +5,7 @@
 //   node scripts/db-setup.mjs
 //   node scripts/db-setup.mjs "postgresql://postgres:....@db.xxxx.supabase.co:5432/postgres"
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import dotenv from "dotenv";
@@ -26,10 +26,12 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const files = [
-  join(root, "supabase", "migrations", "0001_init.sql"),
-  join(root, "supabase", "seed.sql"),
-];
+const migrationsDir = join(root, "supabase", "migrations");
+const migrationFiles = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => join(migrationsDir, f));
+const files = [...migrationFiles, join(root, "supabase", "seed.sql")];
 
 const client = new pg.Client({
   connectionString,

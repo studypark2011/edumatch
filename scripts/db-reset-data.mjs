@@ -1,4 +1,4 @@
-// 研究データ（会話・メッセージ・参加者・投稿）だけを全削除するリセットスクリプト。
+// 研究データ（会話・メッセージ・参加者）だけを全削除するリセットスクリプト。
 // テーマ・モード・実験設定・登録文書は残す。パイロット試行後のリセットにも使える。
 //   node scripts/db-reset-data.mjs
 import { fileURLToPath } from "node:url";
@@ -15,7 +15,6 @@ const client = new pg.Client({
 });
 
 await client.connect();
-// 依存順に削除（messages/posts は参照先。truncate cascade で一括）
-await client.query("truncate table messages, posts, conversations, participants restart identity cascade;");
-console.log("研究データ（会話・メッセージ・参加者・投稿）を削除しました。テーマ/モード/実験設定/文書は保持。");
+await client.query("truncate table messages, conversations, participants restart identity cascade;");
+console.log("研究データ（会話・メッセージ・参加者）を削除しました。テーマ/モード/実験設定/文書は保持。");
 await client.end();

@@ -12,11 +12,10 @@ async function count(table: string): Promise<number> {
 
 export default async function AdminHome() {
   await requireAdmin();
-  const [docs, convs, msgs, posts, parts] = await Promise.all([
+  const [docs, convs, msgs, parts] = await Promise.all([
     count("documents"),
     count("conversations"),
     count("messages"),
-    count("posts"),
     count("participants"),
   ]);
 
@@ -25,7 +24,6 @@ export default async function AdminHome() {
     { label: "参加者", value: parts },
     { label: "会話", value: convs },
     { label: "メッセージ", value: msgs },
-    { label: "投稿", value: posts },
   ];
 
   return (
@@ -35,7 +33,7 @@ export default async function AdminHome() {
         <LogoutButton />
       </header>
 
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-center">
             <div className="text-2xl font-bold">{s.value}</div>
@@ -67,9 +65,6 @@ export default async function AdminHome() {
           </a>
           <a href="/api/admin/export?type=conversations" className="rounded-lg border border-[var(--border)] px-4 py-2">
             会話
-          </a>
-          <a href="/api/admin/export?type=posts" className="rounded-lg border border-[var(--border)] px-4 py-2">
-            投稿
           </a>
         </div>
         <p className="mt-3 text-xs text-[var(--muted)]">

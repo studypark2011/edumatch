@@ -102,18 +102,6 @@ create table if not exists messages (
 );
 create index if not exists messages_conversation_idx on messages(conversation_id);
 
--- ---------- 意見投稿（対話→表明の導線） ----------
-create table if not exists posts (
-  id              uuid primary key default gen_random_uuid(),
-  conversation_id uuid references conversations(id) on delete set null,
-  theme_slug      text references themes(slug) on delete set null,
-  participant_id  uuid references participants(id) on delete set null,
-  content         text not null,
-  ai_assisted     boolean not null default false,
-  created_at      timestamptz not null default now()
-);
-create index if not exists posts_theme_idx on posts(theme_slug);
-
 -- =============================================================
 -- ベクトル検索 RPC
 -- =============================================================
@@ -154,7 +142,6 @@ alter table experiment_config enable row level security;
 alter table participants      enable row level security;
 alter table conversations     enable row level security;
 alter table messages          enable row level security;
-alter table posts             enable row level security;
 
 -- 公開ボード/UI初期表示用の読み取り（匿名）
 drop policy if exists "public read themes" on themes;
@@ -162,9 +149,6 @@ create policy "public read themes" on themes for select using (true);
 
 drop policy if exists "public read modes" on modes;
 create policy "public read modes" on modes for select using (true);
-
-drop policy if exists "public read posts" on posts;
-create policy "public read posts" on posts for select using (true);
 
 -- =============================================================
 -- Data API（PostgREST）用の権限付与。
@@ -179,5 +163,5 @@ grant all privileges on all sequences in schema public to service_role;
 grant execute on all functions in schema public to service_role;
 
 -- 公開読み取り（匿名・将来anonクライアントを使う場合に備える。RLSポリシーと整合）
-grant select on themes, modes, posts to anon, authenticated;
+grant select on themes, modes to anon, authenticated;
 grant execute on all functions in schema public to anon, authenticated;
