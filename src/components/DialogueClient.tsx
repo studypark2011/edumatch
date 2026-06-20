@@ -223,6 +223,12 @@ export default function DialogueClient({
             </button>
           ))}
         </div>
+        {/* 選択中スタイルの説明 */}
+        {modes.find((m) => m.key === activeMode)?.description && (
+          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+            {modes.find((m) => m.key === activeMode)?.description}
+          </p>
+        )}
       </div>
 
       {/* メッセージ */}
