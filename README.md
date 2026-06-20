@@ -85,4 +85,4 @@ npm run dev
 
 ## 仕様書
 
-詳細は [docs/仕様書.md](docs/仕様書.md) を参照（論文の System Design 章向け）。
+詳細仕様は [docs/教育特化型RAG対話メディア_システム仕様書_v2.docx](docs/教育特化型RAG対話メディア_システム仕様書_v2.docx)（Word・論文の System Design 章向け）を参照。
