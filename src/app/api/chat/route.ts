@@ -100,18 +100,9 @@ export async function POST(req: Request) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        // 引用は先に送る（RAGありの体験：根拠の明示）
-        controller.enqueue(
-          sse(encoder, {
-            type: "meta",
-            citations: citations.map((c) => ({
-              title: c.title,
-              source_url: c.source_url,
-              snippet: c.snippet.slice(0, 160),
-            })),
-            dialogueModeKey: activeModeKey,
-          }),
-        );
+        // 盲検維持のため、引用（RAG参照）はクライアントに送らない。
+        // 根拠はAIの応答本文に自然に織り込まれる。引用は messages.citations にサーバ側でのみ保存する。
+        controller.enqueue(sse(encoder, { type: "meta", dialogueModeKey: activeModeKey }));
 
         const llm = anthropic().messages.stream({
           model: CHAT_MODEL,

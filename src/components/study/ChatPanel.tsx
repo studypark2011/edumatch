@@ -5,8 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MIN_USER_TURNS } from "@/lib/study-content";
 
-type Cite = { title: string; source_url: string | null; snippet: string };
-type Msg = { role: "user" | "assistant"; content: string; citations?: Cite[] };
+type Msg = { role: "user" | "assistant"; content: string };
 
 export default function ChatPanel({
   participantId,
@@ -84,16 +83,7 @@ export default function ChatPanel({
         for (const line of lines) {
           if (!line.trim()) continue;
           const evt = JSON.parse(line);
-          if (evt.type === "meta") {
-            const citations: Cite[] = evt.citations ?? [];
-            if (citations.length > 0) {
-              setMessages((m) => {
-                const copy = [...m];
-                copy[copy.length - 1] = { ...copy[copy.length - 1], citations };
-                return copy;
-              });
-            }
-          } else if (evt.type === "delta") {
+          if (evt.type === "delta") {
             setMessages((m) => {
               const copy = [...m];
               const last = copy[copy.length - 1];
@@ -166,20 +156,6 @@ export default function ChatPanel({
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                   ) : (
                     <span className="text-[var(--muted)]">考え中…</span>
-                  )}
-                  {m.citations && m.citations.length > 0 && (
-                    <details className="mt-2 rounded-lg bg-black/[0.03] p-2 text-xs">
-                      <summary className="cursor-pointer text-[var(--muted)]">
-                        参照した資料（{m.citations.length}件）
-                      </summary>
-                      <ul className="mt-1 space-y-1">
-                        {m.citations.map((c, j) => (
-                          <li key={j}>
-                            <span className="font-medium">{c.title}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </details>
                   )}
                 </div>
               ) : (
