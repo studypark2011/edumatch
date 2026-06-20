@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MIN_USER_TURNS, DIALOGUE_GUIDE, OPENING_MESSAGE } from "@/lib/study-content";
@@ -36,6 +36,22 @@ export default function ChatPanel({
   const userTurns = messages.filter((m) => m.role === "user").length;
   const canProceed = userTurns >= MIN_USER_TURNS && !streaming;
 
+  // 新規に会話を作成（メッセージは変更しない）。会話ID/テーマ/開始時刻を確定し、親に通知。
+  const createConversation = useCallback(async (): Promise<string> => {
+    const res = await fetch("/api/study/dialogue-start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ participantId, theme }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error ?? "対話の開始に失敗しました");
+    if (!startTimeRef.current) startTimeRef.current = Date.now();
+    setConversationId(json.conversationId);
+    setThemeInfo((t) => t ?? json.theme);
+    onReady?.(json.conversationId, startTimeRef.current);
+    return json.conversationId;
+  }, [participantId, theme, onReady]);
+
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
@@ -49,52 +65,61 @@ export default function ChatPanel({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ conversationId: resumeConversationId }),
           });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error ?? "対話の復元に失敗しました");
-          setConversationId(resumeConversationId);
-          setThemeInfo(json.theme);
-          setMessages([{ role: "assistant", content: OPENING_MESSAGE }, ...(json.messages ?? [])]);
+          if (res.ok) {
+            const json = await res.json();
+            setConversationId(resumeConversationId);
+            setThemeInfo(json.theme);
+            setMessages([{ role: "assistant", content: OPENING_MESSAGE }, ...(json.messages ?? [])]);
+            return;
+          }
+          // 復元先の会話が見つからない（古い保存データ等）→ 新規に作り直す
         } else {
           startTimeRef.current = Date.now();
-          const res = await fetch("/api/study/dialogue-start", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ participantId, theme }),
-          });
-          const json = await res.json();
-          if (!res.ok) throw new Error(json.error ?? "対話の開始に失敗しました");
-          setConversationId(json.conversationId);
-          setThemeInfo(json.theme);
-          // AIの最初のメッセージ（呼び水）。クライアント表示のみで、LLM履歴やログには含めない。
-          setMessages([{ role: "assistant", content: OPENING_MESSAGE }]);
-          onReady?.(json.conversationId, startTimeRef.current);
         }
+        await createConversation();
+        // AIの最初のメッセージ（呼び水）。クライアント表示のみで、LLM履歴やログには含めない。
+        setMessages([{ role: "assistant", content: OPENING_MESSAGE }]);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     })();
-  }, [participantId, theme, resumeConversationId, resumeStartMs, onReady]);
+  }, [resumeConversationId, resumeStartMs, createConversation]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, streaming]);
 
   async function send() {
-    if (!conversationId || !input.trim() || streaming) return;
+    if (!input.trim() || streaming) return;
     const userMsg = input.trim();
     setInput("");
     setMessages((m) => [...m, { role: "user", content: userMsg }, { role: "assistant", content: "" }]);
     setStreaming(true);
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversationId, message: userMsg }),
-      });
-      if (!res.ok || !res.body) {
+      const chat = (cid: string) =>
+        fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId: cid, message: userMsg }),
+        });
+
+      let cid = conversationId ?? (await createConversation());
+      let res = await chat(cid);
+      if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j.error ?? "応答の取得に失敗しました");
+        // 会話が見つからない（古いID等）→ 会話を作り直して一度だけ再送
+        if (typeof j.error === "string" && j.error.includes("会話が見つかりません")) {
+          cid = await createConversation();
+          res = await chat(cid);
+          if (!res.ok) {
+            const j2 = await res.json().catch(() => ({}));
+            throw new Error(j2.error ?? "応答の取得に失敗しました");
+          }
+        } else {
+          throw new Error(j.error ?? "応答の取得に失敗しました");
+        }
       }
+      if (!res.body) throw new Error("応答の取得に失敗しました");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
@@ -158,7 +183,7 @@ export default function ChatPanel({
 
       <div
         ref={scrollRef}
-        className="h-[46vh] space-y-4 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] p-3"
+        className="h-[34vh] space-y-4 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] p-3 sm:h-[46vh]"
       >
         {messages.length === 0 && (
           <p className="py-10 text-center text-sm text-[var(--muted)]">
@@ -188,44 +213,47 @@ export default function ChatPanel({
         ))}
       </div>
 
-      <div className="mt-2 flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
-        <textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          rows={2}
-          placeholder="メッセージを入力（Ctrl/⌘+Enterで送信）"
-          className="flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
-        />
-        <button
-          type="button"
-          onClick={send}
-          disabled={streaming || !input.trim()}
-          className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
-          送信
-        </button>
-      </div>
+      {/* 入力＋次へ：画面下に固定して、スマホでも常に見えるように */}
+      <div className="sticky bottom-0 z-10 mt-2 bg-[var(--background)] pb-2 pt-2">
+        <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            rows={2}
+            placeholder="メッセージを入力…"
+            className="flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={streaming || !input.trim()}
+            className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
+          >
+            送信
+          </button>
+        </div>
 
-      <div className="mt-3 flex items-center justify-between">
-        <span className="text-xs text-[var(--muted)]">
-          {canProceed
-            ? "十分に対話できました。納得いくまで続けても、次に進んでも構いません。"
-            : `あと ${Math.max(0, MIN_USER_TURNS - userTurns)} 回ほどやりとりしてから次に進めます`}
-        </span>
-        <button
-          type="button"
-          onClick={finish}
-          disabled={!canProceed}
-          className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
-          対話を終えて次へ
-        </button>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-xs text-[var(--muted)]">
+            {canProceed
+              ? "十分に対話できました。納得いくまで続けても、次に進んでも構いません。"
+              : `あと ${Math.max(0, MIN_USER_TURNS - userTurns)} 回ほどやりとりしてから次に進めます`}
+          </span>
+          <button
+            type="button"
+            onClick={finish}
+            disabled={!canProceed}
+            className="w-full shrink-0 rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-medium text-white disabled:opacity-40 sm:w-auto"
+          >
+            対話を終えて次へ
+          </button>
+        </div>
       </div>
     </div>
   );
