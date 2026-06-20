@@ -204,31 +204,40 @@ export default function DialogueClient({
         <h1 className="text-sm font-bold leading-6">{session.theme.title}</h1>
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{session.theme.intro}</p>
 
-        {/* 対話スタイル切替（フルシステム機能） */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="text-xs text-[var(--muted)]">対話スタイル：</span>
-          {modes.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              title={m.description ?? ""}
-              onClick={() => setActiveMode(m.key)}
-              className={`rounded-full border px-3 py-1 text-xs transition ${
-                activeMode === m.key
-                  ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-[var(--border)] bg-white hover:border-[var(--primary)]"
-              }`}
-            >
-              {m.name}
-            </button>
-          ))}
-        </div>
-        {/* 選択中スタイルの説明 */}
-        {modes.find((m) => m.key === activeMode)?.description && (
-          <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-            {modes.find((m) => m.key === activeMode)?.description}
+        {/* 対話スタイル切替（フルシステム機能）：役割を最初から一覧表示 */}
+        <div className="mt-3">
+          <p className="mb-1.5 text-xs text-[var(--muted)]">
+            対話スタイルを選べます（いつでも切り替え可）
           </p>
-        )}
+          <div className="grid gap-2 sm:grid-cols-3">
+            {modes.map((m) => {
+              const selected = activeMode === m.key;
+              return (
+                <button
+                  key={m.key}
+                  type="button"
+                  onClick={() => setActiveMode(m.key)}
+                  aria-pressed={selected}
+                  className={`rounded-lg border p-2.5 text-left transition ${
+                    selected
+                      ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]"
+                      : "border-[var(--border)] bg-white hover:border-[var(--primary)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-1 text-xs font-bold">
+                    {selected && <span className="text-[var(--primary)]">✓</span>}
+                    {m.name}
+                  </div>
+                  {m.description && (
+                    <div className="mt-1 text-[11px] leading-4 text-[var(--muted)]">
+                      {m.description}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* メッセージ */}
