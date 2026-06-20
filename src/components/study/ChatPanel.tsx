@@ -137,7 +137,9 @@ export default function ChatPanel({
             ナビゲーターモード
           </span>
         </div>
-        <p className="text-xs leading-5 text-[var(--muted)]">
+        <h2 className="text-sm font-bold leading-6">{themeInfo.title}</h2>
+        <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{themeInfo.intro}</p>
+        <p className="mt-2 border-t border-[var(--border)] pt-2 text-xs leading-5 text-[var(--muted)]">
           このテーマについて、いま考えていることや疑問を自由に書いてみてください。AIが論点を整理し、考えを深めるお手伝いをします。
         </p>
       </div>
