@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  CONSENT_TEXT, ROLE_OPTIONS, AI_FREQ_OPTIONS, THEMES, FREE_QUESTIONS,
+  CONSENT_TEXT, ROLE_OPTIONS, EXPERIENCE_OPTIONS, AI_FREQ_OPTIONS, THEMES, FREE_QUESTIONS,
 } from "@/lib/study-content";
 import { LikertGroup, allAnswered } from "./Likert";
 import ChatPanel from "./ChatPanel";
@@ -33,7 +33,8 @@ export default function StudyFlow() {
   const [err, setErr] = useState<string | null>(null);
 
   // 属性
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState<string[]>([]); // 立場（複数選択可）
+  const [experience, setExperience] = useState(""); // 経験年数（単一）
   const [aiFreq, setAiFreq] = useState<number | null>(null);
 
   // 事前・事後（テーマごとに使い回し、遷移時にリセット）
@@ -58,7 +59,7 @@ export default function StudyFlow() {
   }
 
   const startSession = guard(async () => {
-    const json = await postJSON("/api/study/start", { consent: true, role, aiFreq });
+    const json = await postJSON("/api/study/start", { consent: true, role, experience, aiFreq });
     setParticipantId(json.participantId);
     setPre([null, null, null, null]);
     setStep("t1_pre");
@@ -132,13 +133,34 @@ export default function StudyFlow() {
       <Shell title="あなたについて">
         <div className="space-y-5">
           <fieldset className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-            <legend className="px-1 text-sm font-medium">お立場（1つ選択）</legend>
+            <legend className="px-1 text-sm font-medium">お立場（当てはまるものをすべてお選びください）</legend>
             <div className="mt-2 space-y-2">
-              {ROLE_OPTIONS.map((r) => (
-                <button key={r} type="button" onClick={() => setRole(r)}
-                  className={`block w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
-                    role === r ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] hover:border-[var(--primary)]"}`}>
-                  {r}
+              {ROLE_OPTIONS.map((r) => {
+                const checked = role.includes(r);
+                return (
+                  <button key={r} type="button"
+                    onClick={() => setRole((cur) => (checked ? cur.filter((x) => x !== r) : [...cur, r]))}
+                    aria-pressed={checked}
+                    className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition ${
+                      checked ? "border-[var(--primary)] bg-[var(--primary)]/10" : "border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                    <span className={`flex h-4 w-4 flex-none items-center justify-center rounded border text-[10px] ${
+                      checked ? "border-[var(--primary)] bg-[var(--primary)] text-white" : "border-[var(--muted)]"}`}>
+                      {checked ? "✓" : ""}
+                    </span>
+                    {r}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          <fieldset className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
+            <legend className="px-1 text-sm font-medium">教育に関わる仕事の経験年数（1つ選択）</legend>
+            <div className="mt-2 grid grid-cols-3 gap-2">
+              {EXPERIENCE_OPTIONS.map((e) => (
+                <button key={e} type="button" onClick={() => setExperience(e)}
+                  className={`rounded-lg border px-2 py-2 text-center text-sm transition ${
+                    experience === e ? "border-[var(--primary)] bg-[var(--primary)]/10 ring-1 ring-[var(--primary)]" : "border-[var(--border)] hover:border-[var(--primary)]"}`}>
+                  {e}
                 </button>
               ))}
             </div>
@@ -161,7 +183,7 @@ export default function StudyFlow() {
           </fieldset>
         </div>
         <div className="mt-6">
-          <NextBtn onClick={startSession} disabled={!role || aiFreq === null} />
+          <NextBtn onClick={startSession} disabled={role.length === 0 || !experience || aiFreq === null} />
         </div>
       </Shell>
     );

@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { resolveCondition } from "@/lib/experiment";
+import { ROLE_OPTIONS, EXPERIENCE_OPTIONS } from "@/lib/study-content";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const Body = z.object({
   consent: z.literal(true),
-  role: z.string().min(1),
+  role: z.array(z.enum(ROLE_OPTIONS as [string, ...string[]])).min(1), // 立場（複数選択可）
+  experience: z.enum(EXPERIENCE_OPTIONS as [string, ...string[]]), // 経験年数（単一）
   aiFreq: z.number().int().min(1).max(4),
 });
 
@@ -48,6 +50,7 @@ export async function POST(req: Request) {
       consent_at: now,
       started_at: now,
       role: parsed.data.role,
+      experience: parsed.data.experience,
       ai_freq: parsed.data.aiFreq,
       t1_rag: t1.rag_enabled,
       t2_rag: t2.rag_enabled,

@@ -8,6 +8,7 @@ export const dynamic = "force-dynamic";
 function csvCell(v: unknown): string {
   if (v === null || v === undefined) return '""';
   if (typeof v === "boolean") return `"${v ? 1 : 0}"`; // フラグは 0/1 で出力
+  if (Array.isArray(v)) return `"${v.join(";").replace(/"/g, '""')}"`; // 複数選択は ; 区切り
   return `"${String(v).replace(/"/g, '""')}"`;
 }
 
@@ -19,7 +20,7 @@ function toCsv(rows: Record<string, unknown>[], headers: string[]): string {
 
 // responses.csv：1参加者=1行（選択式回答はすべて整数1〜4、群・RAGフラグ付き）
 const RESPONSE_COLS = [
-  "participant_code", "group_label", "consent", "role", "ai_freq",
+  "participant_code", "group_label", "consent", "role", "experience", "ai_freq",
   "t1_rag", "t2_rag", "started_at", "completed_at",
   "t1_pre_1", "t1_pre_2", "t1_pre_3", "t1_pre_4",
   "t1_post_1", "t1_post_2", "t1_post_3", "t1_post_4",

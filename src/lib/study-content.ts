@@ -14,13 +14,19 @@ export const LIKERT_LABELS = [
   "とてもそう思う",
 ];
 
+// 立場（複数選択可）
 export const ROLE_OPTIONS = [
   "教員（小・中・高・特別支援等）",
-  "学校管理職（校長・教頭等）",
+  "学校管理職",
   "教育委員会・自治体の担当者",
-  "民間教育事業者（塾・EdTech企業等）",
+  "塾・予備校など民間の指導者",
+  "EdTech・教育サービス事業者",
+  "大学教員・研究者",
   "その他",
 ];
+
+// 教育に関わる仕事の経験年数（単一選択）
+export const EXPERIENCE_OPTIONS = ["5年未満", "5〜15年", "15年以上"];
 
 export const AI_FREQ_OPTIONS = [
   "ほとんど使わない",
