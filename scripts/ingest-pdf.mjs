@@ -57,8 +57,9 @@ async function embedBatch(texts) {
   return res.data.map((d) => d.embedding);
 }
 
-async function ingest({ path, tag, title }) {
-  console.log(`\n=== ${title} ===\n  file: ${path}`);
+async function ingest({ path, tag, tags, title }) {
+  const tagList = tags ?? (tag ? [tag] : []);
+  console.log(`\n=== ${title} ===\n  file: ${path}\n  tags: ${tagList.join(", ")}`);
   const text = (await extractPdf(path)).trim();
   console.log(`  抽出: ${text.length} 文字 / 冒頭: ${text.slice(0, 160).replace(/\n/g, " ")}`);
   const chunks = chunkText(text);
@@ -67,7 +68,7 @@ async function ingest({ path, tag, title }) {
 
   const { data: doc, error: e1 } = await supabase
     .from("documents")
-    .insert({ title, source_type: "file", tags: [tag], status: "processing" })
+    .insert({ title, source_type: "file", tags: tagList, status: "processing" })
     .select("id").single();
   if (e1) throw new Error(e1.message);
   const documentId = doc.id;
@@ -78,7 +79,7 @@ async function ingest({ path, tag, title }) {
       const slice = chunks.slice(i, i + 96);
       const vectors = await embedBatch(slice);
       slice.forEach((content, j) => rows.push({
-        document_id: documentId, chunk_index: i + j, content, tags: [tag], embedding: vectors[j],
+        document_id: documentId, chunk_index: i + j, content, tags: tagList, embedding: vectors[j],
       }));
       process.stdout.write(`\r  埋め込み: ${Math.min(i + 96, chunks.length)}/${chunks.length}`);
     }
