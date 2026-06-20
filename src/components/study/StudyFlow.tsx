@@ -3,17 +3,18 @@
 import { useState } from "react";
 import {
   CONSENT_TEXT, ROLE_OPTIONS, EXPERIENCE_OPTIONS, AI_FREQ_OPTIONS, THEMES, FREE_QUESTIONS,
+  ORIENTATION_STEPS, PRE_NOTE,
 } from "@/lib/study-content";
 import { LikertGroup, allAnswered } from "./Likert";
 import ChatPanel from "./ChatPanel";
 
 type Step =
-  | "consent" | "attrs"
+  | "consent" | "attrs" | "intro"
   | "t1_pre" | "t1_chat" | "t1_post"
   | "t2_pre" | "t2_chat" | "t2_post"
   | "free" | "done";
 
-const ORDER: Step[] = ["consent", "attrs", "t1_pre", "t1_chat", "t1_post", "t2_pre", "t2_chat", "t2_post", "free", "done"];
+const ORDER: Step[] = ["consent", "attrs", "intro", "t1_pre", "t1_chat", "t1_post", "t2_pre", "t2_chat", "t2_post", "free", "done"];
 
 async function postJSON(url: string, body: unknown) {
   const res = await fetch(url, {
@@ -61,8 +62,7 @@ export default function StudyFlow() {
   const startSession = guard(async () => {
     const json = await postJSON("/api/study/start", { consent: true, role, experience, aiFreq });
     setParticipantId(json.participantId);
-    setPre([null, null, null, null]);
-    setStep("t1_pre");
+    setStep("intro");
   });
 
   const submitPre = (theme: "theme1" | "theme2", next: Step) => guard(async () => {
@@ -189,6 +189,30 @@ export default function StudyFlow() {
     );
   }
 
+  if (step === "intro") {
+    return (
+      <Shell title="これから始めます">
+        <div className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 text-sm leading-7">
+          <p>教育に関する2つのテーマについて考えていただきます。各テーマは次の順で進みます。</p>
+          <ol className="space-y-1">
+            {ORIENTATION_STEPS.map((s, i) => (
+              <li key={i} className="flex gap-2">
+                <span className="font-bold text-[var(--primary)]">{i + 1}</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="text-[var(--muted)]">
+            所要時間は全体で20〜30分です。正解・不正解はありません。あなたご自身の率直なお考えをお聞かせください。
+          </p>
+        </div>
+        <div className="mt-6">
+          <NextBtn onClick={() => { setPre([null, null, null, null]); setStep("t1_pre"); }} label="始める" />
+        </div>
+      </Shell>
+    );
+  }
+
   if (step === "t1_pre" || step === "t2_pre") {
     const t = step === "t1_pre" ? THEMES[0] : THEMES[1];
     const next: Step = step === "t1_pre" ? "t1_chat" : "t2_chat";
@@ -198,6 +222,7 @@ export default function StudyFlow() {
           <p className="font-bold">{t.title}</p>
           {t.intro.map((p, i) => <p key={i} className="text-[var(--muted)]">{p}</p>)}
         </div>
+        <p className="mb-3 text-xs text-[var(--muted)]">{PRE_NOTE}</p>
         <LikertGroup questions={t.pre} values={pre} onChange={(i, v) => setPre((a) => a.map((x, j) => (j === i ? v : x)))} />
         <div className="mt-6">
           <NextBtn onClick={submitPre(t.slug, next)} disabled={!allAnswered(pre)} label="回答して対話へ進む" />
