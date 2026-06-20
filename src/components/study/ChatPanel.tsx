@@ -10,13 +10,19 @@ type Msg = { role: "user" | "assistant"; content: string };
 export default function ChatPanel({
   participantId,
   theme,
+  resumeConversationId,
+  resumeStartMs,
+  onReady,
   onComplete,
 }: {
   participantId: string;
   theme: "theme1" | "theme2";
+  resumeConversationId?: string | null;
+  resumeStartMs?: number | null;
+  onReady?: (conversationId: string, startMs: number) => void;
   onComplete: (turnCount: number, durationSec: number) => void;
 }) {
-  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(resumeConversationId ?? null);
   const [themeInfo, setThemeInfo] = useState<{ title: string; intro: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -33,25 +39,41 @@ export default function ChatPanel({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    startTimeRef.current = Date.now();
     (async () => {
       try {
-        const res = await fetch("/api/study/dialogue-start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ participantId, theme }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "対話の開始に失敗しました");
-        setConversationId(json.conversationId);
-        setThemeInfo(json.theme);
-        // AIの最初のメッセージ（呼び水）。クライアント表示のみで、LLM履歴やログには含めない。
-        setMessages([{ role: "assistant", content: OPENING_MESSAGE }]);
+        if (resumeConversationId) {
+          // リロード復元：既存の会話とメッセージを読み込む
+          startTimeRef.current = resumeStartMs ?? Date.now();
+          const res = await fetch("/api/study/dialogue-resume", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ conversationId: resumeConversationId }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error ?? "対話の復元に失敗しました");
+          setConversationId(resumeConversationId);
+          setThemeInfo(json.theme);
+          setMessages([{ role: "assistant", content: OPENING_MESSAGE }, ...(json.messages ?? [])]);
+        } else {
+          startTimeRef.current = Date.now();
+          const res = await fetch("/api/study/dialogue-start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ participantId, theme }),
+          });
+          const json = await res.json();
+          if (!res.ok) throw new Error(json.error ?? "対話の開始に失敗しました");
+          setConversationId(json.conversationId);
+          setThemeInfo(json.theme);
+          // AIの最初のメッセージ（呼び水）。クライアント表示のみで、LLM履歴やログには含めない。
+          setMessages([{ role: "assistant", content: OPENING_MESSAGE }]);
+          onReady?.(json.conversationId, startTimeRef.current);
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
     })();
-  }, [participantId, theme]);
+  }, [participantId, theme, resumeConversationId, resumeStartMs, onReady]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

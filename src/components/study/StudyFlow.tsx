@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CONSENT_TEXT, ROLE_OPTIONS, EXPERIENCE_OPTIONS, AI_FREQ_OPTIONS, THEMES, FREE_QUESTIONS,
   ORIENTATION_STEPS, PRE_NOTE,
 } from "@/lib/study-content";
 import { LikertGroup, allAnswered } from "./Likert";
 import ChatPanel from "./ChatPanel";
+
+const STORAGE_KEY = "edumatch_study_v1";
 
 type Step =
   | "consent" | "attrs" | "intro"
@@ -43,11 +45,60 @@ export default function StudyFlow() {
   const [post, setPost] = useState<(number | null)[]>([null, null, null, null]);
   const [resp, setResp] = useState<(number | null)[]>([null, null, null]);
   const [mode1, setMode1] = useState<(number | null)[]>([null]);
-  const dlg = { t1: { turn: 0, dur: 0 }, t2: { turn: 0, dur: 0 } };
-  const [dialogue] = useState(dlg);
+
+  // リロード復元用：各テーマの会話ID・対話開始時刻・対話結果（往復数/所要秒）
+  const [conv, setConv] = useState<{ t1: string | null; t2: string | null }>({ t1: null, t2: null });
+  const [dlgStart, setDlgStart] = useState<{ t1: number | null; t2: number | null }>({ t1: null, t2: null });
+  const [dialogue, setDialogue] = useState<{ t1: { turn: number; dur: number }; t2: { turn: number; dur: number } }>({
+    t1: { turn: 0, dur: 0 }, t2: { turn: 0, dur: 0 },
+  });
 
   // 自由記述
   const [free, setFree] = useState(["", "", ""]);
+
+  // ---- セッション永続化（リロードしても途中から再開） ----
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s.participantId && s.step && s.step !== "done") {
+        setParticipantId(s.participantId);
+        setStep(s.step);
+        if (s.conv) setConv(s.conv);
+        if (s.dlgStart) setDlgStart(s.dlgStart);
+        if (s.dialogue) setDialogue(s.dialogue);
+      }
+    } catch {
+      /* 破損データは無視 */
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!restored.current) return;
+    if (!participantId || step === "done") {
+      if (step === "done") localStorage.removeItem(STORAGE_KEY);
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ participantId, step, conv, dlgStart, dialogue }));
+  }, [participantId, step, conv, dlgStart, dialogue]);
+
+  const onChatReady = useCallback(
+    (theme: "t1" | "t2") => (conversationId: string, startMs: number) => {
+      setConv((c) => ({ ...c, [theme]: conversationId }));
+      setDlgStart((s) => ({ ...s, [theme]: startMs }));
+    },
+    [],
+  );
+
+  const resetAll = useCallback(() => {
+    if (!confirm("最初からやり直しますか？ これまでの回答（このセッション）は破棄されます。")) return;
+    localStorage.removeItem(STORAGE_KEY);
+    location.reload();
+  }, []);
 
   const progress = Math.round((ORDER.indexOf(step) / (ORDER.length - 1)) * 100);
 
@@ -89,29 +140,43 @@ export default function StudyFlow() {
   });
 
   function onDialogueDone(theme: "t1" | "t2", turn: number, dur: number, next: Step) {
-    dialogue[theme] = { turn, dur };
+    setDialogue((d) => ({ ...d, [theme]: { turn, dur } }));
     setPost([null, null, null, null]); setResp([null, null, null]); setMode1([null]);
     setStep(next);
   }
 
-  // ---------- 共通ラッパ ----------
-  const Shell = ({ title, children, footer }: { title?: string; children: React.ReactNode; footer?: React.ReactNode }) => (
-    <main className="mx-auto w-full max-w-2xl px-4 py-6">
-      <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
-        <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${progress}%` }} />
-      </div>
-      {title && <h1 className="mb-4 text-lg font-bold">{title}</h1>}
-      {children}
-      {err && <p className="mt-3 text-sm text-red-600">エラー：{err}</p>}
-      {footer && <div className="mt-6">{footer}</div>}
-    </main>
+  // ---------- 共通ラッパ（useCallbackで識別子を安定させ、再レンダー時の再マウント＝入力フォーカス喪失を防ぐ） ----------
+  const showReset = step !== "consent" && step !== "done";
+  const Shell = useCallback(
+    ({ title, children, footer }: { title?: string; children: React.ReactNode; footer?: React.ReactNode }) => (
+      <main className="mx-auto w-full max-w-2xl px-4 py-6">
+        <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
+          <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${progress}%` }} />
+        </div>
+        {title && <h1 className="mb-4 text-lg font-bold">{title}</h1>}
+        {children}
+        {err && <p className="mt-3 text-sm text-red-600">エラー：{err}</p>}
+        {footer && <div className="mt-6">{footer}</div>}
+        {showReset && (
+          <div className="mt-8 text-center">
+            <button type="button" onClick={resetAll} className="text-xs text-[var(--muted)] underline">
+              最初からやり直す
+            </button>
+          </div>
+        )}
+      </main>
+    ),
+    [progress, err, showReset, resetAll],
   );
 
-  const NextBtn = ({ onClick, disabled, label = "次へ" }: { onClick: () => void; disabled?: boolean; label?: string }) => (
-    <button type="button" onClick={onClick} disabled={disabled || busy}
-      className="w-full rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-medium text-white disabled:opacity-40">
-      {busy ? "送信中…" : label}
-    </button>
+  const NextBtn = useCallback(
+    ({ onClick, disabled, label = "次へ" }: { onClick: () => void; disabled?: boolean; label?: string }) => (
+      <button type="button" onClick={onClick} disabled={disabled || busy}
+        className="w-full rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-medium text-white disabled:opacity-40">
+        {busy ? "送信中…" : label}
+      </button>
+    ),
+    [busy],
   );
 
   // ---------- 各ステップ ----------
@@ -242,6 +307,9 @@ export default function StudyFlow() {
         <ChatPanel
           participantId={participantId!}
           theme={t.slug}
+          resumeConversationId={isT1 ? conv.t1 : conv.t2}
+          resumeStartMs={isT1 ? dlgStart.t1 : dlgStart.t2}
+          onReady={onChatReady(isT1 ? "t1" : "t2")}
           onComplete={(turn, dur) => onDialogueDone(isT1 ? "t1" : "t2", turn, dur, isT1 ? "t1_post" : "t2_post")}
         />
       </Shell>
