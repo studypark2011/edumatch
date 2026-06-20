@@ -171,11 +171,6 @@ export default function ChatPanel({
   return (
     <div className="flex flex-col">
       <div className="mb-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="rounded bg-[var(--primary)] px-2 py-0.5 text-xs font-bold text-white">
-            ナビゲーターモード
-          </span>
-        </div>
         <h2 className="text-sm font-bold leading-6">{themeInfo.title}</h2>
         <p className="mt-1 text-xs leading-6 text-[var(--muted)]">{themeInfo.intro}</p>
         <p className="mt-2 text-xs font-medium leading-6 text-[var(--foreground)]">{DIALOGUE_GUIDE}</p>
