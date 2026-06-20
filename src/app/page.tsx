@@ -1,65 +1,50 @@
-import Image from "next/image";
+import Link from "next/link";
+import { listThemes } from "@/lib/experiment";
+import { supabaseAdmin } from "@/lib/supabase/server";
+import EntryForm from "@/components/EntryForm";
+import type { ExperimentConfig } from "@/lib/types";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const themes = await listThemes();
+  const { data: cfg } = await supabaseAdmin()
+    .from("experiment_config")
+    .select("theme_slug, displayed_mode");
+  const modeByTheme: Record<string, string> = {};
+  for (const c of (cfg ?? []) as Pick<ExperimentConfig, "theme_slug" | "displayed_mode">[]) {
+    modeByTheme[c.theme_slug] = c.displayed_mode;
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <main className="mx-auto w-full max-w-3xl px-5 py-10">
+      <header className="mb-8">
+        <h1 className="text-2xl font-bold">教育AIツール 対話パート</h1>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          このページは、アンケート（Googleフォーム）の途中で行う「AIとの対話」のためのものです。
+          フォームの案内に従って、指定されたテーマで対話してください。
+        </p>
+      </header>
+
+      <section className="mb-8 rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 text-sm leading-7">
+        <p className="font-semibold">進め方</p>
+        <ol className="mt-2 list-decimal space-y-1 pl-5">
+          <li>フォームでお伝えした「あなたのグループ（X または Y）」を選びます。</li>
+          <li>フォームで指定されたテーマのカードから対話を始めます。</li>
+          <li>5〜7分ほど対話したら、考えを整理してフォームに戻ってください。</li>
+        </ol>
+        <p className="mt-3 text-[var(--muted)]">
+          ※ 回答は匿名で、研究目的にのみ使用します。氏名・メールアドレスは収集しません。
+        </p>
+      </section>
+
+      <EntryForm themes={themes} modeByTheme={modeByTheme} />
+
+      <footer className="mt-10 border-t border-[var(--border)] pt-4 text-xs text-[var(--muted)]">
+        <Link href="/board" className="underline">
+          みんなの意見ボードを見る
+        </Link>
+      </footer>
+    </main>
   );
 }
