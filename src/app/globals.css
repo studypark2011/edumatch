@@ -26,6 +26,11 @@ body {
   line-height: 1.7;
 }
 
+/* iOS Safari の自動ズーム対策：入力欄の文字を16px以上にすると、タップ時に拡大されない */
+input, textarea, select {
+  font-size: 16px;
+}
+
 /* Markdown 簡易スタイル（チャット応答用） */
 .prose-chat p { margin: 0.4em 0; }
 .prose-chat ul { list-style: disc; padding-left: 1.3em; margin: 0.4em 0; }

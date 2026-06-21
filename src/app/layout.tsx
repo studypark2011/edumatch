@@ -1,5 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 // リンクのプレビューやタブに研究の狙いが出ると参加者を方向づけてしまう（バイアス）ため、
 // 研究調査であることだけ伝わる中立的な表示にする。
