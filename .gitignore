@@ -45,3 +45,6 @@ dev.log
 *.output
 
 .vercel
+
+# data export (contains research data)
+/export/
