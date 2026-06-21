@@ -165,9 +165,15 @@ export default function StudyFlow() {
 
   // ---------- 共通ラッパ（useCallbackで識別子を安定させ、再レンダー時の再マウント＝入力フォーカス喪失を防ぐ） ----------
   const showReset = step !== "consent" && step !== "done";
+  const totalSteps = ORDER.length - 1; // 'done'（完了画面）を除く
+  const stepNo = Math.min(ORDER.indexOf(step) + 1, totalSteps);
   const Shell = useCallback(
     ({ title, children, footer }: { title?: string; children: React.ReactNode; footer?: React.ReactNode }) => (
       <main className="mx-auto w-full max-w-2xl px-4 py-6">
+        <div className="mb-1 flex items-center justify-between text-xs text-[var(--muted)]">
+          <span>進捗</span>
+          {step !== "done" && <span>ステップ {stepNo} / {totalSteps}</span>}
+        </div>
         <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[var(--border)]">
           <div className="h-full bg-[var(--primary)] transition-all" style={{ width: `${progress}%` }} />
         </div>
@@ -184,7 +190,7 @@ export default function StudyFlow() {
         )}
       </main>
     ),
-    [progress, err, showReset, resetAll],
+    [progress, err, showReset, resetAll, step, stepNo, totalSteps],
   );
 
   const NextBtn = useCallback(
