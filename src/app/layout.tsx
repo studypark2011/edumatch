@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+// リンクのプレビューやタブに研究の狙いが出ると参加者を方向づけてしまう（バイアス）ため、
+// 研究調査であることだけ伝わる中立的な表示にする。
+const TITLE = "教育に関する調査";
+const DESCRIPTION = "教育関係者を対象とした研究調査です。回答は匿名で、研究目的にのみ使用します。";
+
 export const metadata: Metadata = {
-  title: "教育AIツール 対話パート",
-  description: "教育関係者の意見形成・言語化を支援する対話型メディア（研究用）",
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { title: TITLE, description: DESCRIPTION },
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
+  robots: { index: false, follow: false },
 };
 
 export default function RootLayout({
