@@ -45,6 +45,7 @@ export default function StudyFlow() {
   const [post, setPost] = useState<(number | null)[]>([null, null, null, null]);
   const [resp, setResp] = useState<(number | null)[]>([null, null, null]);
   const [mode1, setMode1] = useState<(number | null)[]>([null]);
+  const [attempted, setAttempted] = useState(false); // 未回答ハイライト表示の制御
 
   // リロード復元用：各テーマの会話ID・対話開始時刻・対話結果（往復数/所要秒）
   const [conv, setConv] = useState<{ t1: string | null; t2: string | null }>({ t1: null, t2: null });
@@ -94,6 +95,21 @@ export default function StudyFlow() {
     [],
   );
 
+  // 全問回答済みなら run() を実行。未回答があれば赤ハイライトして最初の未回答へスクロール。
+  function proceedIfComplete(complete: boolean, run: () => void) {
+    if (complete) {
+      setAttempted(false);
+      run();
+    } else {
+      setAttempted(true);
+      setTimeout(() => {
+        document
+          .querySelector('[data-unanswered="true"]')
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
+    }
+  }
+
   const resetAll = useCallback(() => {
     if (!confirm("最初からやり直しますか？ これまでの回答（このセッション）は破棄されます。")) return;
     localStorage.removeItem(STORAGE_KEY);
@@ -129,6 +145,7 @@ export default function StudyFlow() {
       turnCount: d.turn, durationSec: d.dur,
     });
     setPre([null, null, null, null]);
+    setAttempted(false);
     setStep(next);
   });
 
@@ -142,6 +159,7 @@ export default function StudyFlow() {
   function onDialogueDone(theme: "t1" | "t2", turn: number, dur: number, next: Step) {
     setDialogue((d) => ({ ...d, [theme]: { turn, dur } }));
     setPost([null, null, null, null]); setResp([null, null, null]); setMode1([null]);
+    setAttempted(false);
     setStep(next);
   }
 
@@ -275,7 +293,7 @@ export default function StudyFlow() {
           </p>
         </div>
         <div className="mt-6">
-          <NextBtn onClick={() => { setPre([null, null, null, null]); setStep("t1_pre"); }} label="始める" />
+          <NextBtn onClick={() => { setPre([null, null, null, null]); setAttempted(false); setStep("t1_pre"); }} label="始める" />
         </div>
       </Shell>
     );
@@ -291,9 +309,12 @@ export default function StudyFlow() {
           {t.intro.map((p, i) => <p key={i} className="text-[var(--muted)]">{p}</p>)}
         </div>
         <p className="mb-3 text-xs text-[var(--muted)]">{PRE_NOTE}</p>
-        <LikertGroup questions={t.pre} values={pre} onChange={(i, v) => setPre((a) => a.map((x, j) => (j === i ? v : x)))} />
+        <LikertGroup questions={t.pre} values={pre} showErrors={attempted} onChange={(i, v) => setPre((a) => a.map((x, j) => (j === i ? v : x)))} />
         <div className="mt-6">
-          <NextBtn onClick={submitPre(t.slug, next)} disabled={!allAnswered(pre)} label="回答して対話へ進む" />
+          {attempted && !allAnswered(pre) && (
+            <p className="mb-2 text-sm text-red-600">未回答の質問があります（赤色）。すべてお答えください。</p>
+          )}
+          <NextBtn onClick={() => proceedIfComplete(allAnswered(pre), submitPre(t.slug, next))} label="回答して対話へ進む" />
         </div>
       </Shell>
     );
@@ -324,14 +345,17 @@ export default function StudyFlow() {
     return (
       <Shell title={`${t.label}　対話のあとに`}>
         <p className="mb-3 text-sm text-[var(--muted)]">AIと対話したうえで、いまのお気持ちをお答えください。</p>
-        <LikertGroup questions={t.post} values={post} onChange={(i, v) => setPost((a) => a.map((x, j) => (j === i ? v : x)))} />
+        <LikertGroup questions={t.post} values={post} showErrors={attempted} onChange={(i, v) => setPost((a) => a.map((x, j) => (j === i ? v : x)))} />
         <p className="mb-2 mt-6 text-sm font-medium">いま使ったAIについて</p>
-        <LikertGroup questions={t.resp} values={resp} onChange={(i, v) => setResp((a) => a.map((x, j) => (j === i ? v : x)))} />
+        <LikertGroup questions={t.resp} values={resp} showErrors={attempted} onChange={(i, v) => setResp((a) => a.map((x, j) => (j === i ? v : x)))} />
         <div className="mt-5">
-          <LikertGroup questions={[t.mode]} values={mode1} onChange={(_, v) => setMode1([v])} />
+          <LikertGroup questions={[t.mode]} values={mode1} showErrors={attempted} onChange={(_, v) => setMode1([v])} />
         </div>
         <div className="mt-6">
-          <NextBtn onClick={submitPost(t.slug, next)} disabled={!ready} label={isT1 ? "回答して次のテーマへ" : "回答して最後の質問へ"} />
+          {attempted && !ready && (
+            <p className="mb-2 text-sm text-red-600">未回答の質問があります（赤色）。すべてお答えください。</p>
+          )}
+          <NextBtn onClick={() => proceedIfComplete(ready, submitPost(t.slug, next))} label={isT1 ? "回答して次のテーマへ" : "回答して最後の質問へ"} />
         </div>
       </Shell>
     );

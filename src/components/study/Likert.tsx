@@ -6,16 +6,29 @@ export function LikertGroup({
   questions,
   values,
   onChange,
+  showErrors = false,
 }: {
   questions: string[];
   values: (number | null)[];
   onChange: (index: number, value: number) => void;
+  showErrors?: boolean;
 }) {
   return (
     <div className="space-y-5">
-      {questions.map((q, qi) => (
-        <fieldset key={qi} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4">
-          <legend className="px-1 text-sm font-medium leading-6">{q}</legend>
+      {questions.map((q, qi) => {
+        const unanswered = showErrors && values[qi] === null;
+        return (
+        <fieldset
+          key={qi}
+          data-unanswered={unanswered ? "true" : undefined}
+          className={`rounded-xl border bg-[var(--card)] p-4 ${
+            unanswered ? "border-red-400 ring-1 ring-red-300" : "border-[var(--border)]"
+          }`}
+        >
+          <legend className="px-1 text-sm font-medium leading-6">
+            {q}
+            {unanswered && <span className="ml-1 text-xs font-bold text-red-500">※未回答</span>}
+          </legend>
           <div className="mt-2 grid grid-cols-4 gap-2">
             {LIKERT_LABELS.map((label, li) => {
               const v = li + 1; // 1〜4 の整数
@@ -39,7 +52,8 @@ export function LikertGroup({
             })}
           </div>
         </fieldset>
-      ))}
+        );
+      })}
     </div>
   );
 }
