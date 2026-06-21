@@ -101,8 +101,11 @@ export async function GET(req: Request) {
     const { data } = await db.from("participants").select("*").order("participant_code");
     const numOrNull = (v: unknown): number | null =>
       typeof v === "number" ? v : v === null || v === undefined ? null : Number(v);
-    const mean = (vals: (number | null)[]): number | null =>
-      vals.some((v) => v === null) ? null : Math.round((vals.reduce((a, b) => a + (b as number), 0) / vals.length) * 1000) / 1000;
+    const mean = (vals: (number | null)[]): number | null => {
+      if (vals.some((v) => v === null)) return null;
+      const nums = vals as number[];
+      return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 1000) / 1000;
+    };
     const headers = [
       "participant_code", "group", "theme", "rag", "completed", "ai_freq", "experience",
       "pre_certainty", "post_certainty", "pre_se", "post_se", "se_gain", "resp_mean",
