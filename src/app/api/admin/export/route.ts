@@ -96,6 +96,46 @@ export async function GET(req: Request) {
     });
     csv = toCsv(rows, ["participant_code", "group", "theme_slug", "rag_enabled", "role", "content", "created_at_jst"]);
     filename = "dialogues.csv";
+  } else if (type === "analysis") {
+    // 分析特化：1行＝参加者×テーマ（ロング形式）。RQ1（自己効力感gain）/RQ2（RAGあり/なし）に直接使える。
+    const { data } = await db.from("participants").select("*").order("participant_code");
+    const numOrNull = (v: unknown): number | null =>
+      typeof v === "number" ? v : v === null || v === undefined ? null : Number(v);
+    const mean = (vals: (number | null)[]): number | null =>
+      vals.some((v) => v === null) ? null : Math.round((vals.reduce((a, b) => a + (b as number), 0) / vals.length) * 1000) / 1000;
+    const headers = [
+      "participant_code", "group", "theme", "rag", "completed", "ai_freq", "experience",
+      "pre_certainty", "post_certainty", "pre_se", "post_se", "se_gain", "resp_mean",
+      "mode_1", "turn_count", "duration_sec",
+    ];
+    const rows: Record<string, unknown>[] = [];
+    for (const p of (data ?? []) as Record<string, unknown>[]) {
+      for (const [n, pre] of [["theme1", "t1"], ["theme2", "t2"]] as const) {
+        if (p[`${pre}_pre_1`] === null && p[`${pre}_post_1`] === null) continue; // このテーマ未着手はスキップ
+        const preSe = mean([numOrNull(p[`${pre}_pre_2`]), numOrNull(p[`${pre}_pre_3`]), numOrNull(p[`${pre}_pre_4`])]);
+        const postSe = mean([numOrNull(p[`${pre}_post_2`]), numOrNull(p[`${pre}_post_3`]), numOrNull(p[`${pre}_post_4`])]);
+        rows.push({
+          participant_code: p.participant_code,
+          group: p.group_label,
+          theme: n,
+          rag: p[`${pre}_rag`],
+          completed: p.completed_at !== null,
+          ai_freq: p.ai_freq,
+          experience: p.experience,
+          pre_certainty: p[`${pre}_pre_1`],
+          post_certainty: p[`${pre}_post_1`],
+          pre_se: preSe,
+          post_se: postSe,
+          se_gain: preSe !== null && postSe !== null ? Math.round((postSe - preSe) * 1000) / 1000 : null,
+          resp_mean: mean([numOrNull(p[`${pre}_resp_1`]), numOrNull(p[`${pre}_resp_2`]), numOrNull(p[`${pre}_resp_3`])]),
+          mode_1: p[`${pre}_mode_1`],
+          turn_count: p[`${pre}_turn_count`],
+          duration_sec: p[`${pre}_duration_sec`],
+        });
+      }
+    }
+    csv = toCsv(rows, headers);
+    filename = "analysis.csv";
   } else {
     return NextResponse.json({ error: "type が不正です" }, { status: 400 });
   }

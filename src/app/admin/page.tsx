@@ -70,7 +70,10 @@ export default async function AdminHome() {
       <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-5">
         <h2 className="mb-3 font-bold">データ書き出し（CSV）</h2>
         <div className="flex flex-wrap gap-3 text-sm">
-          <a href="/api/admin/export?type=responses" className="rounded-lg bg-[var(--primary)] px-4 py-2 font-medium text-white">
+          <a href="/api/admin/export?type=analysis" className="rounded-lg bg-[var(--primary)] px-4 py-2 font-medium text-white">
+            analysis.csv（分析用・1行=参加者×テーマ）
+          </a>
+          <a href="/api/admin/export?type=responses" className="rounded-lg border border-[var(--border)] px-4 py-2">
             responses.csv（1参加者=1行）
           </a>
           <a href="/api/admin/export?type=dialogues" className="rounded-lg border border-[var(--border)] px-4 py-2">
@@ -78,8 +81,8 @@ export default async function AdminHome() {
           </a>
         </div>
         <p className="mt-3 text-xs leading-6 text-[var(--muted)]">
-          responses.csv は1参加者=1行。選択式回答はすべて整数1〜4、群（X/Y）と各テーマのRAGあり/なしフラグ（t1_rag, t2_rag を 1/0）を含むため、そのまま条件別集計に使えます。<br />
-          dialogues.csv は対話ログ（participant_code・テーマ・rag_enabled付き）。participant_code で responses と紐づきます。
+          <strong>analysis.csv</strong>（分析推奨）：1行=参加者×テーマのロング形式。rag(1/0)、自己効力感の pre_se/post_se/se_gain（pre2-4・post2-4の平均）、応答評価 resp_mean を算出済み。RQ1（事前事後）/RQ2（RAGあり・なし）にそのまま使えます。<br />
+          responses.csv は1参加者=1行の生回答（整数1〜4・群・t1_rag/t2_rag）。dialogues.csv は対話ログ（participant_codeで紐づく）。時刻はJST。
         </p>
       </section>
     </main>
