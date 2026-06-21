@@ -71,12 +71,21 @@ export async function POST(req: Request) {
   const themeContext = theme
     ? `\n\n【今回のテーマ】${theme.title}\n${theme.intro}`
     : "";
+
+  // RAGあり：参考資料を根拠に具体化。RAGなし：一般知識のみで、特定の公的文書を引用・断定しない（出典の捏造防止）。
+  let ragSection = "";
+  if (conv.rag_enabled && citations.length > 0) {
+    ragSection = buildContextBlock(citations);
+  } else if (!conv.rag_enabled) {
+    ragSection =
+      "\n\n--- 参考資料について ---\n" +
+      "今回は参照できる外部資料は与えられていません。あなた自身の一般的な知識の範囲で、論点を整理しながら誠実に答えてください。" +
+      "手元に原典がないため、特定の公的文書・法令・ガイドライン・通知などの名称を挙げて引用したり、「〇〇に基づくと」と具体的な出典を断定したりしないでください。" +
+      "あくまで一般論として、複数の見方を示すことに徹してください。";
+  }
+
   const systemPrompt =
-    BASE_PREAMBLE +
-    themeContext +
-    "\n\n--- モード指示 ---\n" +
-    mode.system_prompt +
-    (citations.length > 0 ? buildContextBlock(citations) : "");
+    BASE_PREAMBLE + themeContext + "\n\n--- モード指示 ---\n" + mode.system_prompt + ragSection;
 
   const apiMessages = [
     ...(history ?? []).map((m) => ({
