@@ -32,6 +32,15 @@ export default function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const startedRef = useRef(false);
   const startTimeRef = useRef<number>(0);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // 入力量に応じて高さを自動拡張（上限あり）
+  function autoGrow() {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 220) + "px";
+  }
 
   const userTurns = messages.filter((m) => m.role === "user").length;
   const canProceed = userTurns >= MIN_USER_TURNS && !streaming;
@@ -93,6 +102,7 @@ export default function ChatPanel({
     if (!input.trim() || streaming) return;
     const userMsg = input.trim();
     setInput("");
+    if (taRef.current) taRef.current.style.height = "auto"; // 送信後は高さをリセット
     setMessages((m) => [...m, { role: "user", content: userMsg }, { role: "assistant", content: "" }]);
     setStreaming(true);
     try {
@@ -212,8 +222,9 @@ export default function ChatPanel({
       <div className="sticky bottom-0 z-10 mt-2 bg-[var(--background)] pb-2 pt-2">
         <div className="flex items-end gap-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-2">
           <textarea
+            ref={taRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); autoGrow(); }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -222,7 +233,7 @@ export default function ChatPanel({
             }}
             rows={2}
             placeholder="メッセージを入力…"
-            className="flex-1 resize-none bg-transparent px-2 py-1 text-sm outline-none"
+            className="max-h-56 flex-1 resize-y bg-transparent px-2 py-1 text-sm outline-none"
           />
           <button
             type="button"
