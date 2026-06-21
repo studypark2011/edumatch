@@ -12,6 +12,14 @@ function csvCell(v: unknown): string {
   return `"${String(v).replace(/"/g, '""')}"`;
 }
 
+// UTCのタイムスタンプを日本時間（JST）の "YYYY-MM-DD HH:mm:ss" に変換
+function toJst(v: unknown): string {
+  if (!v) return "";
+  const d = new Date(String(v));
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString("sv-SE", { timeZone: "Asia/Tokyo" });
+}
+
 function toCsv(rows: Record<string, unknown>[], headers: string[]): string {
   const head = headers.map(csvCell).join(",");
   const body = rows.map((r) => headers.map((h) => csvCell(r[h])).join(",")).join("\n");
@@ -41,12 +49,24 @@ export async function GET(req: Request) {
   let csv = "";
   let filename = "responses.csv";
 
+  const TIME_COLS = new Set(["started_at", "completed_at"]);
+
   if (type === "responses") {
     const { data } = await db
       .from("participants")
       .select(RESPONSE_COLS.join(","))
       .order("participant_code");
-    csv = toCsv((data ?? []) as unknown as Record<string, unknown>[], RESPONSE_COLS);
+    // 時刻列は JST に変換し、列名に _jst を付ける
+    const headers = RESPONSE_COLS.map((c) => (TIME_COLS.has(c) ? `${c}_jst` : c));
+    const rows = ((data ?? []) as unknown as Record<string, unknown>[]).map((p) => {
+      const o: Record<string, unknown> = {};
+      for (const c of RESPONSE_COLS) {
+        if (TIME_COLS.has(c)) o[`${c}_jst`] = toJst(p[c]);
+        else o[c] = p[c];
+      }
+      return o;
+    });
+    csv = toCsv(rows, headers);
     filename = "responses.csv";
   } else if (type === "dialogues") {
     const { data: convs } = await db
@@ -71,10 +91,10 @@ export async function GET(req: Request) {
         rag_enabled: c?.rag_enabled,
         role: m.role,
         content: m.content,
-        created_at: m.created_at,
+        created_at_jst: toJst(m.created_at),
       };
     });
-    csv = toCsv(rows, ["participant_code", "group", "theme_slug", "rag_enabled", "role", "content", "created_at"]);
+    csv = toCsv(rows, ["participant_code", "group", "theme_slug", "rag_enabled", "role", "content", "created_at_jst"]);
     filename = "dialogues.csv";
   } else {
     return NextResponse.json({ error: "type が不正です" }, { status: 400 });
